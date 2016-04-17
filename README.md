@@ -69,6 +69,8 @@ zip' xs =
 
 As an aside, the performance characteristics of the `newtype` wrapper are totally opaque to me. There may be significant improvements by using `coerce` from [Data.Coerce](https://hackage.haskell.org/package/base-4.8.2.0/docs/Data-Coerce.html), but I haven't looked into it.
 
+## Generalised Zips ##
+
 The immediate temptation from the function above is to generalise it. First to `zipWith`, obviously:
 
 ```haskell
@@ -107,6 +109,8 @@ And so on.
 
 There's the added benefit that the above functions work on much more than just lists.
 
+## Catamorphisms ##
+
 Getting a little formal about the above functions, a `fold` can be described as a catamorphism. This is a name for a pattern of breaking down some recursive structure. There's a bunch of them in the [recursion-schemes](https://hackage.haskell.org/package/recursion-schemes-4.1.2/docs/Data-Functor-Foldable.html) package. The question is, then: can you express the above as a kind of catamorphism? Initially, using the same techniques as before, you can:
 
 ```haskell
@@ -118,7 +122,7 @@ zipo :: (Functor.Foldable f, Functor.Foldable g)
 zipo alg xs ys = cata (flip unRecF) ys (cata (RecF . alg) xs)
 ```
 
-Then, to come full circle, you get a quite nice encoding of `zip`:
+Then, coming full circle, you get a quite nice encoding of `zip`:
 
 ```haskell
 zip' :: [a] -> [b] -> [(a,b)]
@@ -152,6 +156,8 @@ zipo alg = (flip . cata . flip) (alg . project) . refix
 ```
 
 And the already-existing definition of `zip` will still work.
+
+## Zipping Into ##
 
 There's one more issure, though, that's slightly tangential. A lot of the time, the attraction of rewriting functions using folds and catamorphisms is that the function becomes more general: it no longer is restricted to lists. For `zip`, however, there's still a pesky list left in the signature:
 
