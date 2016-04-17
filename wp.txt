@@ -138,7 +138,7 @@ You can actually use a <code>newtype</code> that's provided by the recursion-sch
 newtype Mu a = Roll { unroll :: Mu a -> a }
 [/code]
 
-However, in th recursion-schemes package, its definition looks like this:
+However, in the recursion-schemes package, its definition looks like this:
 
 [code language="scala" light="true"]
 newtype Mu f = Mu (forall a. (f a -> a) -> a)

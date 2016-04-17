@@ -140,7 +140,7 @@ You can actually use a `newtype` that's provided by the recursion-schemes librar
 newtype Mu a = Roll { unroll :: Mu a -> a }
 ```
 
-However, in th recursion-schemes package, its definition looks like this:
+However, in the recursion-schemes package, its definition looks like this:
 
 ```haskell
 newtype Mu f = Mu (forall a. (f a -> a) -> a)
