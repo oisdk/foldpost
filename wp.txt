@@ -26,7 +26,7 @@ zip = foldr f (const []) where
   f _ _  [] = []
 [/code]
 
-The problem with the above isn't that it doesn't work: it does. The problem is that it's not *really* using <code>foldr</code>. It's only using it on the first list: there's still a manual uncons being performed on the second. Ideally, I would want the function to look something like this:
+The problem with the above isn't that it doesn't work: it does. The problem is that it's not <em>really</em> using <code>foldr</code>. It's only using it on the first list: there's still a manual uncons being performed on the second. Ideally, I would want the function to look something like this:
 
 [code language="scala" light="true"]
 zip :: [a] -> [b] -> [(a,b)]
@@ -37,7 +37,7 @@ The best solution I found online only dealt with <code>Fold</code>s, not <code>F
 
 <h2>Recursive Types</h2>
 
-Reworking the solution online for <code>Foldable</code>s, the initial intuition is to have the <code>foldr</code> on the <code>ys</code> produce a function which takes an element of the <code>xs</code>, and returns a function which takes an element of the <code>xs</code>, and so on, finally returning the created list. The *problem* with that approach is the types involved:
+Reworking the solution online for <code>Foldable</code>s, the initial intuition is to have the <code>foldr</code> on the <code>ys</code> produce a function which takes an element of the <code>xs</code>, and returns a function which takes an element of the <code>xs</code>, and so on, finally returning the created list. The <em>problem</em> with that approach is the types involved:
 
 [code language="scala" light="true"]
 zip :: [a] -> [b] -> [(a,b)]
@@ -163,7 +163,7 @@ There's one more issue, though, that's slightly tangential. A lot of the time, t
 zip :: (Foldable f, Foldable g) => f a -> g b -> [(a,b)]
 [/code]
 
-It would be a little nicer to be able to zip through something *preserving* the structure of one of the things being zipped through. For no reason in particular, let's assume we'll preserve the structure of the first argument. The function will have to account for the second argument running out before the first, though. A <code>Maybe</code> can account for that:
+It would be a little nicer to be able to zip through something <em>preserving</em> the structure of one of the things being zipped through. For no reason in particular, let's assume we'll preserve the structure of the first argument. The function will have to account for the second argument running out before the first, though. A <code>Maybe</code> can account for that:
 
 [code language="scala" light="true"]
 zipInto :: (Foldable f, Foldable g) 
@@ -173,7 +173,7 @@ zipInto :: (Foldable f, Foldable g)
 
 If the second argument runs out, <code>Nothing</code> will be passed to the combining function.
 
-It's clear that this isn't a *fold* over the first argument, it's a *traversal*. A first go at the function uses the state monad, but restricts the second argument to a list:
+It's clear that this isn't a <em>fold</em> over the first argument, it's a <em>traversal</em>. A first go at the function uses the state monad, but restricts the second argument to a list:
 
 [code language="scala" light="true"]
 zipInto :: Traversable f => (a -> Maybe b -> c) -> f a -> [b] -> f c
