@@ -1,0 +1,210 @@
+There's a whole family of Haskell brainteasers surrounding one function: <code>foldr</code>. The general idea is to convert some function on lists which uses recursion into one that uses <code>foldr</code>. <code>map</code>, for instance:
+
+[code language="scala" light="true"]
+map :: (a -> b) -> [a] -> [b]
+map f = foldr (\e a -> f e : a) []
+[/code]
+
+Some can get a little trickier. <code>dropWhile</code>, for instance. (See <a href="https://wiki.haskell.org/wikiupload/1/14/TMR-Issue6.pdf">here</a> and <a href="http://www.cs.nott.ac.uk/~pszgmh/fold.pdf">here</a> for interesting articles on that one in particular.)
+
+[code language="scala" light="true"]
+dropWhile :: (a -> Bool) -> [a] -> [a]
+dropWhile p = fst . foldr f ([],[]) where
+  f e ~(xs,ys) = (if p e then xs else zs, zs) where zs = e : ys
+[/code]
+
+<h2>Zip</h2>
+
+One function which was a little harder to convert than it first seemed was <code>zip</code>.
+
+Here's the first (non) solution:
+
+[code language="scala" light="true"]
+zip :: [a] -> [b] -> [(a,b)]
+zip = foldr f (const []) where
+  f x xs (y:ys) = (x,y) : xs ys
+  f _ _  [] = []
+[/code]
+
+The problem with the above isn't that it doesn't work: it does. The problem is that it's not *really* using <code>foldr</code>. It's only using it on the first list: there's still a manual uncons being performed on the second. Ideally, I would want the function to look something like this:
+
+[code language="scala" light="true"]
+zip :: [a] -> [b] -> [(a,b)]
+zip xs ys = foldr f (\_ _ -> []) xs (foldr g (const []) ys)
+[/code]
+
+The best solution I found online only dealt with <code>Fold</code>s, not <code>Foldable</code>s. You can read it <a href="http://okmij.org/ftp/Haskell/zip-folds.lhs">here</a>.
+
+<h2>Recursive Types</h2>
+
+Reworking the solution online for <code>Foldable</code>s, the initial intuition is to have the <code>foldr</code> on the <code>ys</code> produce a function which takes an element of the <code>xs</code>, and returns a function which takes an element of the <code>xs</code>, and so on, finally returning the created list. The *problem* with that approach is the types involved:
+
+[code language="scala" light="true"]
+zip :: [a] -> [b] -> [(a,b)]
+zip xs = foldr f (const []) xs . foldr g (\_ _ -> []) where
+  g e2 r2 e1 r1 = (e1,e2) : (r1 r2)
+  f e r x = x e r
+[/code]
+
+You get the error: <code>Occurs check: cannot construct the infinite type: t0 ~ a -> (t0 -> [(a, b)]) -> [(a, b)]</code>. Haskell's typechecker doesn't allow for infinitely recursive types. 
+
+You'll be familiar with this problem if you've ever tried to encode the Y-combinator, or if you've fiddled around with the recursion-schemes package. You might also be familiar with the solution: a <code>newtype</code>, encapsulating the recursion. In this case, the <code>newtype</code> looks very similar to the signature for <code>foldr</code>:
+
+[code language="scala" light="true"]
+newtype RecFold a b = 
+  RecFold { runRecFold :: a -> (RecFold a b -> b) -> b }
+[/code]
+
+Now you can insert and remove the <code>RecFold</code> wrapper, helping the typechecker to understand the recursive types as it goes:
+
+[code language="scala" light="true"]
+zip :: [a] -> [b] -> [(a,b)]
+zip xs =
+  foldr f (const []) xs . RecFold . foldr g (\_ _ -> []) where
+    g e2 r2 e1 r1 = (e1,e2) : (r1 (RecFold r2))
+    f e r x = runRecFold x e r
+[/code]
+
+As an aside, the performance characteristics of the <code>newtype</code> wrapper are totally opaque to me. There may be significant improvements by using <code>coerce</code> from <a href="https://hackage.haskell.org/package/base-4.8.2.0/docs/Data-Coerce.html">Data.Coerce</a>, but I haven't looked into it.
+
+<h2>Generalised Zips</h2>
+
+The immediate temptation from the function above is to generalise it. First to <code>zipWith</code>, obviously:
+
+[code language="scala" light="true"]
+zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith c xs =
+  foldr f (const []) xs . RecFold . foldr g (\_ _ -> []) where
+    g e2 r2 e1 r1 = c e1 e2 : (r1 (RecFold r2))
+    f e r x = runRecFold x e r
+[/code]
+
+What's maybe a little more interesting, though, would be a <code>foldr</code> on two lists. Something which folds through both at once, using a supplied combining function:
+
+[code language="scala" light="true"]
+foldr2 :: (Foldable f, Foldable g)
+       => (a -> b -> c -> c)
+       -> c -> f a -> g b -> c
+foldr2 c i xs =
+  foldr f (const i) xs . RecFold . foldr g (\_ _ -> i) where
+    g e2 r2 e1 r1 = c e1 e2 (r1 (RecFold r2))
+    f e r x = runRecFold x e r
+[/code]
+
+Of course, once you can do two, you can do three:
+
+[code language="scala" light="true"]
+foldr3 :: (Foldable f, Foldable g, Foldable h)
+       => (a -> b -> c -> d -> d)
+       -> d -> f a -> g b -> h c -> d
+foldr3 c i xs ys =
+  foldr f (const i) xs . RecFold . foldr2 g (\_ _ -> i) ys where
+    g e2 e3 r2 e1 r1 = c e1 e2 e3 (r1 (RecFold r2))
+    f e r x = runRecFold x e r
+[/code]
+
+And so on.
+
+There's the added benefit that the above functions work on much more than just lists.
+
+<h2>Catamorphisms</h2>
+
+Getting a little formal about the above functions, a <code>fold</code> can be described as a catamorphism. This is a name for a pattern of breaking down some recursive structure. There's a bunch of them in the <a href="https://hackage.haskell.org/package/recursion-schemes-4.1.2/docs/Data-Functor-Foldable.html">recursion-schemes</a> package. The question is, then: can you express the above as a kind of catamorphism? Initially, using the same techniques as before, you can:
+
+[code language="scala" light="true"]
+newtype RecF f a = RecF { unRecF :: Base f (RecF f a -> a) -> a }
+
+zipo :: (Functor.Foldable f, Functor.Foldable g)
+     => (Base f (RecF g c) -> Base g (RecF g c -> c) -> c)
+     -> f -> g -> c
+zipo alg xs ys = cata (flip unRecF) ys (cata (RecF . alg) xs)
+[/code]
+
+Then, coming full circle, you get a quite nice encoding of <code>zip</code>:
+
+[code language="scala" light="true"]
+zip :: [a] -> [b] -> [(a,b)]
+zip = zipo alg where
+  alg Nil _ = []
+  alg _ Nil = []
+  alg (Cons x xs) (Cons y ys) = (x, y) : ys xs
+[/code]
+
+However, the <code>RecF</code> is a little ugly. In fact, it's possible to write the above without any recursive types, using the Rank2Types extension. (It's possible that you could do the same with <code>foldr2</code> as well, but I haven't figured it out yet)
+
+You can actually use a <code>newtype</code> that's provided by the recursion-schemes library as-is. It's <code>Mu</code>. This is required for an encoding of the Y-combinator. It's usually presented in this form:
+
+[code language="scala" light="true"]
+newtype Mu a = Roll { unroll :: Mu a -> a }
+[/code]
+
+However, in th recursion-schemes package, its definition looks like this:
+
+[code language="scala" light="true"]
+newtype Mu f = Mu (forall a. (f a -> a) -> a)
+[/code]
+
+No recursion! The <code>zipo</code> combinator above can be written using <code>Mu</code> like so:
+
+[code language="scala" light="true"]
+zipo :: (Functor.Foldable f, Functor.Foldable g) 
+     => (Base f (Mu (Base f)) -> Base g (Mu (Base f) -> c) -> c)
+     -> f -> g -> c
+zipo alg = (flip . cata . flip) (alg . project) . refix
+[/code]
+
+And the already-existing definition of <code>zip</code> will still work.
+
+<h2>Zipping Into</h2>
+
+There's one more issue, though, that's slightly tangential. A lot of the time, the attraction of rewriting functions using folds and catamorphisms is that the function becomes more general: it no longer is restricted to lists. For <code>zip</code>, however, there's still a pesky list left in the signature:
+
+[code language="scala" light="true"]
+zip :: (Foldable f, Foldable g) => f a -> g b -> [(a,b)]
+[/code]
+
+It would be a little nicer to be able to zip through something *preserving* the structure of one of the things being zipped through. For no reason in particular, let's assume we'll preserve the structure of the first argument. The function will have to account for the second argument running out before the first, though. A <code>Maybe</code> can account for that:
+
+[code language="scala" light="true"]
+zipInto :: (Foldable f, Foldable g) 
+        => (a -> Maybe b -> c) 
+        -> f a -> g b -> f c
+[/code]
+
+If the second argument runs out, <code>Nothing</code> will be passed to the combining function.
+
+It's clear that this isn't a *fold* over the first argument, it's a *traversal*. A first go at the function uses the state monad, but restricts the second argument to a list:
+
+[code language="scala" light="true"]
+zipInto :: Traversable f => (a -> Maybe b -> c) -> f a -> [b] -> f c
+zipInto c xs ys = evalState (traverse f xs) ys where
+  f x = do
+    h <- gets uncons
+    case h of 
+      Just (y,t) -> do 
+        put t
+        pure (c x (Just y))
+      Nothing -> pure (c x Nothing)
+[/code]
+That code can be cleaned up a little with the <code>mapAccumL</code> function:
+
+[code language="scala" light="true"]
+zipInto :: Traversable f => (a -> Maybe b -> c) -> f a -> [b] -> f c
+zipInto c xs ys = snd (mapAccumL f ys xs) where
+  f [] e = ([], c e Nothing)
+  f (x:xs) e = (xs, c e (Just x))
+[/code]
+
+But really, the uncons needs to go. Another <code>newtype</code> wrapper is needed, and here's the end result:
+
+[code language="scala" light="true"]
+newtype RecAccu a b =
+  RecAccu { runRecAccu :: a -> (RecAccu a b, b) }
+  
+zipInto :: (Traversable t, Foldable f)
+        => (a -> Maybe b -> c) -> t a -> f b -> t c
+zipInto f xs =
+  snd . flip (mapAccumL runRecAccu) xs . RecAccu . foldr h i where
+    i e = (RecAccu i, f e Nothing)
+    h e2 a e1 = (RecAccu a, f e1 (Just e2))
+[/code]

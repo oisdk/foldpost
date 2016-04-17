@@ -159,7 +159,7 @@ And the already-existing definition of `zip` will still work.
 
 ## Zipping Into ##
 
-There's one more issure, though, that's slightly tangential. A lot of the time, the attraction of rewriting functions using folds and catamorphisms is that the function becomes more general: it no longer is restricted to lists. For `zip`, however, there's still a pesky list left in the signature:
+There's one more issue, though, that's slightly tangential. A lot of the time, the attraction of rewriting functions using folds and catamorphisms is that the function becomes more general: it no longer is restricted to lists. For `zip`, however, there's still a pesky list left in the signature:
 
 ```haskell
 zip' :: (Foldable f, Foldable g) => f a -> g b -> [(a,b)]
