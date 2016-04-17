@@ -160,7 +160,9 @@ zip' :: (Foldable f, Foldable g) => f a -> g b -> [(a,b)]
 It would be a little nicer to be able to zip through something *preserving* the structure of one of the things being zipped through. For no reason in particular, let's assume we'll preserve the structure of the first argument. The function will have to account for the second argument running out before the first, though. A `Maybe` can account for that:
 
 ```haskell
-zipInto :: (Foldable f, Foldable g) => (a -> Maybe b -> c) -> f a -> g b -> f c
+zipInto :: (Foldable f, Foldable g) 
+        => (a -> Maybe b -> c) 
+        -> f a -> g b -> f c
 ```
 
 If the second argument runs out, `Nothing` will be passed to the combining function.
