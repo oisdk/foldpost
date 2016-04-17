@@ -1,4 +1,4 @@
-Folding Two Things at Once
+# Folding Two Things at Once
 
 There's a whole family of Haskell brainteasers surrounding one function: `foldr`. The general idea is to convert some function on lists which uses recursion into one that uses `foldr`. `map`, for instance:
 
@@ -14,6 +14,8 @@ dropWhile' :: (a -> Bool) -> [a] -> [a]
 dropWhile' p = fst . foldr f ([],[]) where
   f e ~(xs,ys) = (if p e then xs else zs, zs) where zs = e : ys
 ```
+
+## Zip ##
 
 One function which was a little harder to convert than it first seemed was `zip`.
 
@@ -33,11 +35,11 @@ zip' :: [a] -> [b] -> [(a,b)]
 zip' xs ys = foldr f (\_ _ -> []) xs (foldr g (const []) ys)
 ```
 
-This turns out to be much more complicated than you'd initially think.
-
 The best solution I found online only dealt with `Fold`s, not `Foldable`s. You can read it [here](http://okmij.org/ftp/Haskell/zip-folds.lhs). 
 
-Reqorking it for `Foldable`s, the initial intuition is to have the `foldr` on the `ys` produce a function which takes an element of the `xs`, and returns a function which takes an element of the `xs`, and so on, finally returning the created list. The *problem* with that approach is the types involved:
+## Recursive Types ##
+
+Reworking the solution online for `Foldable`s, the initial intuition is to have the `foldr` on the `ys` produce a function which takes an element of the `xs`, and returns a function which takes an element of the `xs`, and so on, finally returning the created list. The *problem* with that approach is the types involved:
 
 ```haskell
 zip' :: [a] -> [b] -> [(a,b)]
@@ -48,7 +50,7 @@ zip' xs = foldr f (const []) xs . foldr g (\_ _ -> []) where
 
 You get the error: `Occurs check: cannot construct the infinite type: t0 ~ a -> (t0 -> [(a, b)]) -> [(a, b)]`. Haskell's typechecker doesn't allow for infinitely recursive types. 
 
-You'll be familiar with this problem if you've ever tried to encode the Y combinator, or if you've fiddled around with the recursion-schemes package. You might also be familiar with the solution: a `newtype`, encapsulating the recursion. In this case, the `newtype` looks very similar to the signature for `foldr`:
+You'll be familiar with this problem if you've ever tried to encode the Y-combinator, or if you've fiddled around with the recursion-schemes package. You might also be familiar with the solution: a `newtype`, encapsulating the recursion. In this case, the `newtype` looks very similar to the signature for `foldr`:
 
 ```haskell
 newtype RecFold a b = 
