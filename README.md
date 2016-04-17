@@ -188,13 +188,14 @@ zipInto c xs ys = evalState (traverse f xs) ys where
         pure (c x (Just y))
       Nothing -> pure (c x Nothing)
 ```
-That code can be cleaned up a little with the `mapAccumL` function:
+
+That code can be cleaned up a little:
 
 ```haskell
 zipInto :: Traversable f => (a -> Maybe b -> c) -> f a -> [b] -> f c
-zipInto c xs ys = snd (mapAccumL f ys xs) where
-  f [] e = ([], c e Nothing)
-  f (x:xs) e = (xs, c e (Just x))
+zipInto c = evalState . traverse (state . f . c) where
+  f x [] = (x Nothing, [])
+  f x (y:ys) = (x (Just y), ys)
 ```
 
 But really, the uncons needs to go. Another `newtype` wrapper is needed, and here's the end result:
