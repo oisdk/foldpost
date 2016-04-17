@@ -1,6 +1,6 @@
 Folding Two Things at Once
 
-There's a whole family of Haskell brainteasers surrounding one function: `foldr`. They usually centre around converting some standard function on lists into one which uses `foldr`. Most are easy. `map`, for instance:
+There's a whole family of Haskell brainteasers surrounding one function: `foldr`. The general idea is to convert some function on lists which uses recursion into one that uses `foldr`. `map`, for instance:
 
 ```haskell
 map' :: (a -> b) -> [a] -> [b]
@@ -15,7 +15,7 @@ dropWhile' p = fst . foldr f ([],[]) where
   f e ~(xs,ys) = (if p e then xs else zs, zs) where zs = e : ys
 ```
 
-There's one problem, though, that I couldn't figure out: rewriting `zip` with `foldr`.
+One function which was a little harder to convert than it first seemed was `zip`.
 
 Here's the first (non) solution:
 
@@ -26,7 +26,7 @@ zip' = foldr f (const []) where
   f _ _  [] = []
 ```
 
-The problem with the above isn't that it doesn't work: it does, and it's fine. The problem is that it's not *really* using `foldr`. It's only using it on the first list: there's still a manual uncons being performed on the second. Ideally, I would want the function to look something like this:
+The problem with the above isn't that it doesn't work: it does. The problem is that it's not *really* using `foldr`. It's only using it on the first list: there's still a manual uncons being performed on the second. Ideally, I would want the function to look something like this:
 
 ```haskell
 zip' :: [a] -> [b] -> [(a,b)]
