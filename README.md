@@ -132,7 +132,7 @@ zip' = zipo alg where
   alg (Cons x xs) (Cons y ys) = (x, y) : ys xs
 ```
 
-However, the `RecF` is a little ugly. In fact, it's possible to write the above without any recursive types, using the Rank2Types extension. (It's possible that you could do the same with `foldr2` as well, but I haven't figured it out yet)
+However, the `RecF` is a little ugly. In fact, it's possible to write the above without any recursive types, using the RankNTypes extension. (It's possible that you could do the same with `foldr2` as well, but I haven't figured it out yet)
 
 You can actually use a `newtype` that's provided by the recursion-schemes library as-is. It's `Mu`. This is required for an encoding of the Y-combinator. It's usually presented in this form:
 
@@ -149,14 +149,21 @@ newtype Mu f = Mu (forall a. (f a -> a) -> a)
 No recursion! The `zipo` combinator above can be written using `Mu` like so:
 
 ```haskell
-zipo :: (Functor.Foldable f, Functor.Foldable g) 
-     => (Base f (Mu (Base f)) -> Base g (Mu (Base f) -> c) -> c)
+zipo :: (Functor.Foldable f, Functor.Foldable g)
+     => (Base f (Mu (Base g) -> c) -> Base g (Mu (Base g)) -> c)
      -> f -> g -> c
-zipo alg = (flip . cata . flip) (alg . project) . refix
+zipo alg xs = cata (\x -> alg x . project) xs . refix
 ```
 
-And the already-existing definition of `zip` will still work.
+And the new version of `zip` has a slightly more natural order of arguments:
 
+```haskell
+zip :: [a] -> [b] -> [(a,b)]
+zip = zipo alg where
+  alg Nil _ = []
+  alg _ Nil = []
+  alg (Cons x xs) (Cons y ys) = (x,y) : xs ys
+```
 ## Zipping Into ##
 
 There's one more issue, though, that's slightly tangential. A lot of the time, the attraction of rewriting functions using folds and catamorphisms is that the function becomes more general: it no longer is restricted to lists. For `zip`, however, there's still a pesky list left in the signature:
